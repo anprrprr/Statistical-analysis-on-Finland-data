@@ -1,0 +1,281 @@
+---
+title: "Mystic mops project 2"
+author: "Anna Tedikova, Alina Prokhorenko, Polina Dymova"
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+### Team members & contributions
+Anna Tedikova - ANOVA script and interpretations, conclusion, customizing the report
+
+Alina Prokhorenko - T-test script & interpretations, topic section, ANOVA intro
+
+Polina Dymova - Chi-squared test script & interpretations, comparison of Chi-squared test & T-test, customizing the report
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(haven)
+ESS <- read_sav("C:/Users/Anna/Downloads/ESS1-9e01_1.sav")
+library(ggplot2)
+library(moments)
+library(sjPlot)
+ESS
+```
+# Topic 
+
+Country: Finland
+
+Theme: The connection between gender and trust in police & trust in police and its connection to satisfaction with government
+ 
+RQ: Is there any association between gender and trust in police in Finland? If yes, then what exactly is this association? Is there any association between satisfaction with government and trust in police in Finland ?
+
+
+The general public was always quite sensitive towards the police institution as the supposed agent of peace maintenance and fighter against any instability within the state. Not so long ago, there were mass Black Lives Matter (BLM) protests in the USA and some other countries against the prejudiced attitudes of police towards black people, which illustrated that people may place huge distrust in this institution, especially the discriminated groups. In our project, we wish to explore the level of trust that women and men of Finland held towards the police.
+
+One of the possible theoretical bases for differentiating experiences of men and women could be the conflict theory, which is in focus in the study about how Chinese citizens perceive police (Wu и Sun, 2009). Even though no significant correlation between gender and trust in police was found out, the researchers highlighted that government structures tend to protect the interests of those in power, which may lead to negative consequences for discriminated groups, which women are a part of.
+
+Other works that explore women’s interactions with the judicial system mostly reveal not so positive experiences. Victims of rape pointed out that many policemen still allow themselves for prejudiced victim-blaming remarks (e.g. about the clothes that the victims were wearing), disregard medical treatement of physical traumas caused by the crime and overall show little signs of emapthy towards them (Jordan, 2008).  Another paper about Canadian women and their experience with the judicial system discovered that women were dissatisfied with how the system handled their issues (Gillis et al., 2006): 
+
+“Despite these many government initiatives, only a minority of participants in the present study reported positive experiences with police officers and other criminal justice officials. The majority of women were further traumatized by ambivalent or discriminatory attitudes and practices prevalent within the system.”
+
+Overall, we see that even despite government initiatives, women still face struggles when interacting with the police. Thus, we want to find out whether women in Finland experience the same thing.
+
+# Chi-squared test
+### Assumptions
+Let's begin by checking the variables and building plots with them. For this test we need two categorical variables. We will also construct a contingency table to check the assumption about having not less than five observations per cell. 
+```{r}
+class(ESS$trstplc)
+class(ESS$gndr)
+
+ESS$trstplc2 <- as.numeric(as.character(ESS$trstplc))
+
+ESS$trstplc2[ESS$trstplc2 == "0" | ESS$trstplc2 == "1" | 
+                 ESS$trstplc2 == "2" | ESS$trstplc2 == "3" | ESS$trstplc2 == "4"] <- "low trust"
+ESS$trstplc2[ESS$trstplc2 == "5" | ESS$trstplc2 == "6" | ESS$trstplc2 == "7"] <- "moderate trust"
+ESS$trstplc2[ESS$trstplc2 == "8"] <- "high trust"
+ESS$trstplc2[ESS$trstplc2 == "9" | ESS$trstplc2 == "10"] <- "very high trust"
+
+ESS$trstplc2 <- factor(ESS$trstplc2, ordered = TRUE, 
+                               levels = c("low trust", 
+                                          "moderate trust", 
+                                          "high trust", "very high trust"))
+
+ESS$gndr2 <- as.numeric(as.character(ESS$gndr))
+ESS$gndr2[ESS$gndr2 == "1"] <- "male"
+ESS$gndr2[ESS$gndr2 == "2"] <- "female"
+
+plot_xtab(ESS$trstplc2, ESS$gndr2)
+
+table(ESS$trstplc2, ESS$gndr2)
+```
+
+Our variables were contained as vectors, i.e. either character or numeric data. We have recoded them to be sure they are catgorical. There is not much difference between genders in each category of `trstplc` on the graph, and the table shows that our assumption is fulfilled. 
+
+### Testing the variables
+H0: there’s no difference between males’ and females’ level of trust in police.
+```{r}
+chisq.test(ESS$trstplc2, ESS$gndr2)
+chi <- chisq.test(ESS$trstplc2, ESS$gndr2)
+chi$stdres
+```
+
+As the p-value is 0.4242 which higher than 0.05, we accept the null hypothesis, and we can say that there is no statistically significant difference between the genders’ trust in police. Residuals are between -2 and 2 so the effects for both genders are not that different from the real population.
+
+# Independent samples t-test
+We are going to use the same variables from before, and now we need to recode `trstplc` variable into numeric and build the plot with our variables.
+```{r, warning=TRUE}
+ESS$trstplc3 <- as.numeric(ESS$trstplc)
+ggplot(ESS, aes(x = trstplc3, fill = gndr2, colour = gndr2)) + 
+  geom_histogram(alpha = 0.5, position = "identity", breaks = seq(0, 11, by=1))+
+  xlab("Trust in police")+
+  ylab("Number of answers")+
+  ggtitle("Distribution of level of trust in police by gender in Finland")
+```
+
+We decided to check the gender distribution of trust in the police. It turned out that not only is it quite high - the mode category being 8-9 levels of trust, but also there seem to be no significant differences between males and females.
+
+### Assumptions
+Now let's check the normality assumption using histogram and skew & kurtosis and equality of variances using Levene's test.
+For the latter test, we need to spell out statistical hypotheses first.
+H0: The variance among the groups is equal.
+H1: The variance among the groups is not equal.
+```{r}
+ggplot(ESS, aes(x = trstplc3)) + 
+  geom_histogram(breaks = seq(0, 11, by=1))
+  
+print(skewness(ESS$trstplc3, na.rm = T))
+print(kurtosis(ESS$trstplc3, na.rm = T))
+
+library(car)
+leveneTest(ESS$gndr~ESS$trstplc2)
+```
+
+After examining the visualization of the gender distribution of numeric trust in the police, we can say that it is not normal. The normal distribution should be bell-shaped, the kurtosis should be within the range from -1 to 1, the skew - from -0.5 to 0.5. Even though our histogram resembles bell shape, kurtosis and skew do not match the normal values. However, since our sample is huge (more than 300), such deviation is acceptable. We still can rely on the t-test. However, we must check the results with non-parametric tests.
+As for equality of variances, p-value of Levene's test is 0.7328, which is larger than 0.05, so we can't reject the null hypothesis, meaning the variances are equal.
+
+### Testing the variables
+Before doing the test, we must spell out our statistical hypotheses.
+H0: there is no difference between male and female respondents in terms of level of trust in the police.
+H1: the level of trust in the police is different for different genders.
+```{r}
+t.test(ESS$gndr,ESS$trstplc3, paired = FALSE, var.equal = TRUE)
+```
+The p-value is extremely small (< 2.2e-16), so we can reject the null hypothesis. Thus, the levels of trust of women and men are not the same. However, we need to check the effect size to see the size of the difference between male and female respondents.
+
+### Effect size
+```{r, warning=FALSE}
+library(effsize)
+cohen.d(ESS$trstplc3 ~ ESS$gndr2, na.rm = T)
+```
+The effect size value is 0.034, which is extremely small (smaller than 0.1). Thus, we conclude that the difference between female and male respondents is not very significant.
+
+### Non-parametric test
+Since some assumptions were not met, we need to conduct a non-parametric test.
+```{r}
+wilcox.test(ESS$gndr, ESS$trstplc3, paired = FALSE)
+```
+The results are similar to the ones we got earlier. Since p-value is very small (< 2.2e-16), there is a difference between female and male respondents, but it is not great, according to effect size.
+
+### Comparison of Chi-squared and T-test's results
+
+The results of Chi-square test and t-test are different: the first one denies any differences between male and female respondents, the second one admits them. However, since the effect size of the t-test discovered an extremely small difference, we may attribute the incoherence of results between 2 tests to calculation difference. It is also worth noting that in Chi-squared test the variable `trstplc` was converted to categorical, but in T-test it was used as numeric, so the differences in results might be due to that as well.
+
+# One-way ANOVA
+### Intro
+Here we will use slightly different variables. In addition to our main topic, we want to know if there is any connection between trust in police and trust in government. Some scholars point out that in countries where the government is more democratic people tend to trust the police more (Goldsmith, 2005). This is explained by the fact that the public has the opportunity to hold the institutions accountable for their actions, since ‘popular consent’ (the idea that people should directly take part in the governing process) is crucial for democratic states. Thus, the democratic government organizes the police institution in such a way that the people are pleased with it. leading to more trust. 
+
+In our previous project we referred to The Legatum Prosperity Index of 2021, which is the research about the prosperity level of different countries all over the world. Among the variables that it takes into account to create the ratings is the “governance” variable. It measures the level of democracy in the country as well as the level of corruption. According to this index, Finland is ranked the 1st in the world. It leads to our assumption that levels of trust in both police and government will be high in Finland.
+```{r}
+library(dplyr)
+ESS$stfgov2 <- as.numeric(ESS$stfgov)
+ESS_1=ESS%>%
+filter(! is.na(trstplc2))
+ggplot(ESS_1, aes(x = trstplc2, y = stfgov2)) +
+  geom_boxplot() + 
+  ylim(0, 11)+
+  xlab("Level of trust in police")+
+  ylab("Satisfaction with government") +
+  ggtitle("Association between the respondents’ trust in police and satisfaction with government")
+```
+
+From this boxplot, we see that the `stfgov` variable is distributed rather normally across `trstplc` groups apart from low trust group where it seems skewed. The variable's level is slightly higher among the high and very high trust groups of respondents.
+
+### Assumptions
+Next, we should check the assumptions of the ANOVA test, one being normality of the variables. First,let's describe them visually.
+```{r}
+library(scales)
+ggplot(ESS, aes(x = stfgov2)) + 
+  geom_density() +
+  xlim(0, 1)
+summary(ESS$stfgov2)
+```
+```{r}
+par(mar = c(5, 10, 2, 10))
+barplot(table(ESS$trstplc2)/nrow(ESS)*100, las = 2, horiz = T, xlim = c(0, 60))
+```
+
+#### Value descriptives
+To check normality we will look at value descriptives, namely skewness and kurtosis by groups.
+```{r}
+library(psych)
+library(magrittr)
+library(knitr)
+library(kableExtra)
+
+describeBy(ESS$stfgov2, ESS$trstplc2, mat = TRUE) %>%
+  select(Police_trust = group1, N = n, Mean = mean, SD = sd, Median = median, Min = min, Max = max, Skew = skew, Kurtosis = kurtosis, st.error = se) %>% 
+  kable(align = c("lrrrrrrrr"), digits = 2, row.names = FALSE,
+        caption = "Satisfaction with the government by level of trust in police") %>% 
+  kable_styling(bootstrap_options = c("bordered", "responsive","striped"), full_width = FALSE)
+```
+
+Normal skew is between -0.5 and 0.5, normal kurtosis is within +-1 from zero. From this table we can see that kurtosis is normal in all groups, but skew is normal only in group "moderate trust", however, in other groups it is quite close to normal, so we can conclude that distribution resembles the normal one.
+
+#### Variances assumption
+H0: The variance among the groups is equal.
+H1: The variance among the groups is not equal.
+```{r, warning=TRUE}
+library(car)
+leveneTest(ESS$stfgov2 ~ ESS$trstplc2)
+```
+P-value is 0.0181 which is smaller than 0.05, so we can reject the null hypothesis and state that the variances are not equal.
+
+### F-test
+H0: there are no differences between trust level groups.
+H1: the differences between trust level groups are not equal to 0.
+```{r}
+oneway.test(ESS$stfgov2 ~ ESS$trstplc2, var.equal = F)
+aov.out <- aov(ESS$stfgov2 ~ ESS$trstplc2, var.equal = F)
+summary(aov.out)
+```
+P-value is extremely small ( < 2.2e-16) and less than 0.05, so we reject the null hypothesis. Thus, we can say that the difference between groups is statistically significant.
+
+#### Residuals
+```{r}
+anova.res <- residuals(object = aov.out)
+describe(anova.res)
+hist(anova.res)
+
+plot(aov.out, 2)
+```
+
+According to QQ-plot and histogram, our residuals' distribution is close to normal. Skew and kurtosis are also within their normal ranges which is coherent with the results of visualizations, so the normality of residuals assumption holds.
+
+### Post-hoc test
+As variances are not equal across groups, we should use Bonferroni post-hoc test. 
+H0: there are no differences between pairs of groups.
+```{r}
+options(scipen = 999)
+pairwise.t.test(ESS$stfgov2, ESS$trstplc2, 
+                p.adjust.method = "bonferroni")
+```
+In all pairs of groups p-value is very small (and less than 0.05) so we can reject the H0. Thus, the differences between all pairs are statistically significant.
+
+### Effect size
+```{r, warning=TRUE}
+library(effectsize)
+omega_squared(aov.out)
+
+library(rstatix)
+kruskal_effsize(data = ESS, stfgov2 ~ trstplc2)
+```
+Both results for a usual effect-size (0.09) and the non-parametric version (0.08597221) show a moderate effect (between 0.06 and 0.14).
+
+### Non-parametric test
+#### Non-parametric ANOVA
+```{r}
+kruskal.test(stfgov2 ~ trstplc2, data = ESS)
+```
+The non-parametric version of ANOVA shows a very small p-value which is why we can reject the null hypothesis here as well. So the results of usual and non-parametric ANOVA are concise and show a statistically significant difference between groups of trust level.
+
+#### Non-parametric post-hoc
+```{r, warning=TRUE}
+library(DescTools) 
+DunnTest(stfgov2 ~ as.factor(trstplc2),
+         method = "holm",
+         data = ESS)
+```
+The non-parametric post-hoc test shows very small p-values - thus it is the same results as for a usual post-hoc we did earlier and the H0 can be rejected. So there is a statistically significant difference between all pairs of groups.
+
+# Conclusions
+
+We can sum up our findings now. 
+
+First, we looked at gender differences in trust in police in Finland. Chi-squared test has shown no statistically significant difference between the genders, but the independent samples t-test did show a small-effect difference (using the same but recoded variables). We give our explanation of such incoherence in results. The results of t-test are double-checked with non-parametric test due to non-normality of variables, which has shown results similar to usual t-test.
+
+Secondly, we shifted our focus to trust in police & satisfaction with government using ANOVA. We have checked the numeric satisfaction with categories of trust. The results have shown that there is indeed a difference between different categories - people with higher trust tend to be more satisfied with government.The results were supported with effect-size test which has shown a moderate effect, a post-hoc test which proved significant differences between each pair of categories. The non-parametric tests have also been coherent with usual tests.
+
+Finally, we can compare our results with background research. There seems to be no greatly significant difference between genders considering respondent's trust in police. So Finland differes from countries in other research in this respect. Furthermore, there seems to be a connection between trust in police and satisfaction with government in Finland - in this case it is similar to other research we have found. However, we could not check the causality of those variables and thus cannot say which causes what.
+
+### References
+1.Jordan, Jan. 2008. «Perfect Victims, Perfect Policing? Improving Rape Complainants’ Experiences of Police Investigations». Public Administration 86(3):699–719. [doi: 10.1111/j.1467-9299.2008.00749.x.](doi: 10.1111/j.1467-9299.2008.00749.x.)
+
+2.Gillis, Joseph Roy, Shaindl Lin Diamond, Paul Jebely, Victoria Orekhovsky, Ellis M. Ostovich, Kristin MacIsaac, Sandra Sagrati, and Deborah Mandell. 2006. “Systemic Obstacles to Battered Women’s Participation in the Judicial System: When Will the Status Quo Change?” Violence Against Women 12(12):1150–68. [doi: 10.1177/1077801206293500.](doi: 10.1177/1077801206293500.)
+
+3.Wu, Yuning, и Ivan Y. Sun. 2009. «Citizen Trust in Police: The Case of China». Police Quarterly 12(2):170–91. [doi: 10.1177/1098611108330228.](doi: 10.1177/1098611108330228.)
+
+4.Goldsmith, Andrew. 2005. «Police reform and the problem of trust». Theoretical Criminology 9(4):443–70. [doi: 10.1177/1362480605057727.](doi: 10.1177/1362480605057727.)
+
+5.[The Legatum Prosperity Index of 2021](https://www.prosperity.com/rankings)
